@@ -4,7 +4,7 @@ Custom firmware that turns a **JUZIPi SD PRO** desk clock (ESP8266 ESP-12F,
 4 MB flash, 240 × 240 ST7789 display) into a live **CAW (crow with knife)**
 price display. It runs on its own: no Home Assistant, server or account.
 
-![CAW screen](docs/caw-screen.png)
+![CAW Clock on its four chains: Cronos, Solana, Base and Robinhood](docs/caw-screens.png)
 
 ## What it shows
 
