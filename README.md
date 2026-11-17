@@ -13,7 +13,10 @@ price display. It runs on its own: no Home Assistant, server or account.
 - liquidity, 24H volume and market cap
 - green or red by the 24-hour move; the ticker ring turns grey when the data
   is stale
-- the time (your time zone) and Wi-Fi state
+- the time (your time zone, 12- or 24-hour) and Wi-Fi state
+- a price alert: when a chain makes a big move in an hour, the clock jumps to
+  it and the price flashes green (up) or red (down) for 5 minutes
+  ([picture](docs/price-alert.png))
 
 It rotates through the main CAW pool on **Cronos, Solana, Base and
 Robinhood**, each with its chain logo. You choose the chains and the time on
@@ -27,7 +30,8 @@ history, over HTTPS with certificate checks.
 **Step-by-step guide for every route, setup and troubleshooting:
 [INSTALL.md](INSTALL.md).** In short:
 
-Download `caw-clock-<version>.bin` from the
+Already on v0.4.0 or later? Settings page → **System** → **Check for
+updates** → **Install**. Otherwise, download `caw-clock-<version>.bin` from the
 [latest release](https://github.com/caw7777/caw-clock/releases/latest)
 and check it against `SHA256SUMS.txt`.
 
@@ -61,9 +65,11 @@ password") and reopens the setup network after 2 minutes.
 Four tabs:
 
 - **Status**: price and last update for each chain; the clock's address, signal and memory
-- **Display**: brightness, night mode, chains, time on each chain, time zone (63 zones)
+- **Display**: brightness, night mode, chains, time on each chain, price
+  alert, 12- or 24-hour clock, time zone (63 zones)
 - **Memes**: rotation, and the meme library (add, hide, delete)
-- **System**: Wi-Fi, clock password, firmware install, restart, factory reset
+- **System**: Wi-Fi, clock password, check for updates, firmware install,
+  restart, factory reset
 - `http://<clock address>/api/status`: everything as JSON, including memory
   and the last restart reason
 
@@ -82,8 +88,14 @@ is built into the firmware (the default time zone is UTC).
   only shown on the clock's screen). Images are not signed.
 - **Safe mode:** after three quick restarts in a row the clock stops fetching
   prices and keeps the settings page and firmware upload working.
-- No automatic rollback: if a bad image ever stops the clock from starting,
-  recovery needs a USB-serial flash.
+- **Updates from the settings page** are downloaded from this repository's
+  releases over HTTPS and installed only if their SHA-256 matches the
+  release's `SHA256SUMS.txt`. The clock checks only when you press the button.
+- **Built-in backup:** while an update is installing, the clock keeps a copy of
+  the current version (about 1 MB of meme storage, freed again after 10
+  minutes) and returns to it automatically if the new version doesn't start
+  correctly. Without room for the copy, the settings page says so and the
+  update goes ahead without it.
 
 ## Building
 

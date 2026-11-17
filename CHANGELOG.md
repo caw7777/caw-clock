@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.4.0
+
+- Update from the settings page: **System → Check for updates**, then
+  **Install**. Downloads are checked against the release's SHA-256 before they
+  are installed. The clock checks only when you press the button.
+- Built-in backup during updates: the clock keeps a copy of the current
+  version while an update installs and returns to it automatically if the new
+  version doesn't start correctly.
+- Price alert: when a chain moves more than a set amount in an hour (default
+  10%; Display tab), the clock shows that chain and the price flashes green
+  or red for 5 minutes.
+- 12- or 24-hour clock (Display tab).
+- Smoother, more efficient performance; cleaner progress display while
+  updating.
+- `/api/status`: `freeContStackBoot`, `stackLowWork`, `rollbackCopy`, per-chain
+  `alert`; `tlsStackMax` now reports the TLS stack's real peak.
+
 ## v0.3.0
 
 - Settings page in tabs (Status, Display, Memes, System); the meme library is

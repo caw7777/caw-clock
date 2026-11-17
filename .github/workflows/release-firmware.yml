@@ -79,6 +79,20 @@ jobs:
             -C "$(dirname "$SOURCE_ROOT")" "$(basename "$SOURCE_ROOT")"
           cp "$SOURCE_ROOT/LICENSE" "$SOURCE_ROOT/THIRD_PARTY.md" release/
 
+      # Installer for clocks still on their stock firmware ("SDP" file name for
+      # the stock update page): installs exactly this release's .bin, checked
+      # against its SHA-256 built in here.
+      - name: Build installer
+        run: |
+          set -o pipefail
+          export CAW_INSTALLER_VERSION="$VERSION"
+          export CAW_INSTALLER_SHA256="$(sha256sum "release/caw-clock-$VERSION.bin" | cut -d' ' -f1)"
+          cd "$SOURCE_ROOT/caw-installer"
+          pio run 2>&1 | tee build.log
+          if grep -q "warning:" build.log; then echo "::error::compiler warnings"; exit 1; fi
+          cp .pio/build/sdpro_caw_installer/firmware.bin \
+            "$GITHUB_WORKSPACE/release/SDP-CAW-Clock-Installer-$VERSION.bin"
+
       # LGPL-2.1 (ESP8266 Arduino core): the exact framework sources used for
       # this build (incl. our HTTP parser patch), library sources and the
       # compiled objects, so the firmware can be rebuilt or relinked with a
@@ -105,6 +119,9 @@ jobs:
           cp -a "$CORE/platforms" "$STAGE/.platformio/platforms"
           cp -a "$FW/.pio/libdeps" "$STAGE/firmware/.pio/libdeps"
           cp -a "$FW/.pio/build/sdpro_caw_standalone" "$STAGE/firmware/.pio/build/"
+          mkdir -p "$STAGE/caw-installer/.pio/build"
+          cp -a "$SOURCE_ROOT/caw-installer/.pio/libdeps" "$STAGE/caw-installer/.pio/libdeps"
+          cp -a "$SOURCE_ROOT/caw-installer/.pio/build/sdpro_caw_installer" "$STAGE/caw-installer/.pio/build/"
           find "$STAGE" -name .git -prune -exec rm -rf {} +
           cat > "$STAGE/RELINKING.md" <<EOF
           # Rebuilding or relinking CAW Clock $VERSION
@@ -132,7 +149,7 @@ jobs:
 
       - name: Checksums
         run: |
-          (cd release && sha256sum caw-clock-* LICENSE THIRD_PARTY.md > SHA256SUMS.txt)
+          (cd release && sha256sum caw-clock-* SDP-CAW-Clock-Installer-* LICENSE THIRD_PARTY.md > SHA256SUMS.txt)
           cat release/SHA256SUMS.txt
 
       # Not a release asset: kept with the run to decode crash reports
