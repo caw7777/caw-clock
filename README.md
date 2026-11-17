@@ -108,10 +108,6 @@ stay under the 1,044,464-byte OTA slot.
 | Build CAW standalone | changes to the source zip | CAW firmware (`sdpro_caw_standalone`) + native tests |
 | Release CAW Clock firmware | a release is published (or manual dry run) | builds and attaches the release files |
 | Build CAW TLS probe | changes to the source zip | HTTPS test firmware (`sdpro_caw_probe`) |
-| Build CAW + Home Assistant | manual only | CAW + HA firmware (`sdpro_caw_ha`), on hold: over the flash limit |
-
-The other workflows (`build-firmware`, `diagnose-*`, `inspect-*`) are
-development diagnostics.
 
 ### Release files
 
