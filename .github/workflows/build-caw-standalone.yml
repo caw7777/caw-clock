@@ -1,0 +1,81 @@
+name: Build CAW standalone
+
+# Standalone CAW clock firmware (no Home Assistant engine): direct renderer,
+# HTTPS market feed with certificate validation, Digest-auth web panel.
+# Test image for on-device verification; releases come from release-firmware.
+
+on:
+  push:
+    paths:
+      - "caw-working-source.zip"
+      - ".github/workflows/build-caw-standalone.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      OTA_LIMIT: 1044464
+    steps:
+      - uses: actions/checkout@v4
+
+      # Each test build reports its commit as its version (status page,
+      # /api/status, lastCrash.firmware), so a crash names the exact build.
+      - name: Version from commit
+        run: echo "MINI_DISPLAY_BUILD_VERSION=caw-test-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - name: Extract source
+        run: |
+          mkdir -p extracted
+          unzip -q caw-working-source.zip -d extracted
+          ROOT="$(dirname "$(find extracted -name Makefile -type f -print -quit)")"
+          test -f "$ROOT/firmware/src/CawStandalone/caw_standalone.cpp"
+          echo "SOURCE_ROOT=$ROOT" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Native tests
+        run: |
+          python -m pip install "platformio==6.1.19"
+          (cd "$SOURCE_ROOT/firmware" && pio pkg install --environment sdpro)
+          make -C "$SOURCE_ROOT" test-native
+
+      - name: Build standalone firmware
+        run: |
+          set -o pipefail
+          cd "$SOURCE_ROOT/firmware"
+          pio run --environment sdpro_caw_standalone 2>&1 | tee build.log
+          if grep -q "warning:" build.log; then echo "::error::compiler warnings"; exit 1; fi
+
+      - name: Size gate and package
+        run: |
+          BIN="$SOURCE_ROOT/firmware/.pio/build/sdpro_caw_standalone/firmware.bin"
+          SIZE=$(stat -c %s "$BIN")
+          echo "firmware.bin: $SIZE bytes (limit $OTA_LIMIT, headroom $((OTA_LIMIT - SIZE)))"
+          test "$SIZE" -le "$OTA_LIMIT"
+          mkdir -p out
+          cp "$BIN" out/caw-clock-standalone.bin
+          (cd out && sha256sum caw-clock-standalone.bin | tee SHA256SUMS.txt)
+          # Symbols for turning crash addresses (lastCrash.stack, epc1) into
+          # function names: xtensa-lx106-elf-addr2line -pfiaC -e firmware.elf ADDR
+          mkdir -p symbols
+          cp "$SOURCE_ROOT/firmware/.pio/build/sdpro_caw_standalone/firmware.elf" symbols/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: caw-clock-standalone
+          path: out/
+          if-no-files-found: error
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: caw-clock-standalone-symbols
+          path: symbols/
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,208 @@
+name: Diagnose CAW flash usage
+
+# Produces an ELF, linker map, oversized binary and flash-size reports for the
+# sdpro_caw firmware WITHOUT touching the production OTA limit.
+#
+#  * The diagnostic build uses its own PlatformIO environment, sdpro_caw_diag
+#    (added at CI time by scripts/add_diag_env.py). It inherits every option of
+#    sdpro_caw and raises only the size gate.
+#  * The release workflow (build-firmware.yml) still builds sdpro_caw and still
+#    enforces the 1,044,464-byte OTA slot. Nothing here changes that.
+#  * The binary from this workflow must NEVER be flashed.
+
+on:
+  push:
+    paths:
+      - ".github/workflows/diagnose-flash-usage.yml"
+      - "caw-working-source.zip"
+      - "scripts/add_diag_env.py"
+      - "scripts/diag_build.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # Same version string as the release workflow so the image is the same size.
+      MINI_DISPLAY_BUILD_VERSION: caw-0.2.0-test
+      RELEASE_OTA_LIMIT: "1044464"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Extract source, apply CAW patches, add diagnostic environment
+        run: |
+          mkdir -p extracted
+          unzip -q caw-working-source.zip -d extracted
+          ROOT="$(dirname "$(find extracted -name Makefile -type f -print -quit)")"
+          test -n "$ROOT"
+          ROOT="$(realpath "$ROOT")"
+          echo "ROOT=$ROOT" >> "$GITHUB_ENV"
+          echo "Using source root: $ROOT"
+          test -f "$ROOT/firmware/platformio.ini"
+          python3 scripts/add_diag_env.py "$ROOT"
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "platformio==6.1.19" "zopfli==0.4.1"
+          pio --version
+          node --version
+          npm --version
+
+      - name: Verify the diagnostic environment before building
+        run: |
+          cd "$ROOT/firmware"
+          python - <<'PY'
+          from platformio.project.config import ProjectConfig
+
+          RELEASE_LIMIT = "1044464"
+          config = ProjectConfig("platformio.ini")
+          release = config.items(env="sdpro_caw", as_dict=True)
+          diag = config.items(env="sdpro_caw_diag", as_dict=True)
+
+          def flags(items):
+              value = items["build_flags"]
+              return [x.strip() for x in (value if isinstance(value, list) else str(value).split("\n")) if x.strip()]
+
+          tls = [x for x in flags(release) if "MINI_DISPLAY_FEATURE_TLS" in x]
+          print("sdpro_caw TLS flags      :", tls)
+          assert tls == ["-D MINI_DISPLAY_FEATURE_TLS=1"], "duplicate or missing TLS definition"
+          assert "board_upload.maximum_size" not in release, "release env must not override the size limit"
+          assert diag.get("board_upload.maximum_size") == "2000000", "diag env limit missing"
+          assert flags(release) == flags(diag), "diag build flags differ from release"
+          assert release.get("board_build.ldscript") == diag.get("board_build.ldscript")
+          print("release env limit        : no override in platformio.ini (release OTA limit %s bytes)" % RELEASE_LIMIT)
+          print("diag env limit           :", diag["board_upload.maximum_size"], "(diagnostic only)")
+          print("build flags identical    : True")
+          print("environments             :", config.envs())
+          print("default_envs             :", config.default_envs())
+          PY
+
+      - name: Build dashboard assets
+        run: |
+          npm ci --prefix "$ROOT/firmware/web"
+          cd "$ROOT"
+          npm --prefix firmware/web run check
+          MINI_DISPLAY_FEATURE_TLS=1 MINI_DISPLAY_FEATURE_CAW=1 npm --prefix firmware/web run build
+          python3 firmware/scripts/embed_web.py
+          python3 firmware/scripts/index_smooth_fonts.py
+
+      - name: Inspect font registrations and references
+        run: |
+          OUT="$GITHUB_WORKSPACE/diag-source"
+          mkdir -p "$OUT"
+          cd "$ROOT"
+          rg -n -i 'FreeMono|FreeSerif|InterTightSmooth|coveragePixels|Weather96|Weather48' firmware/src firmware/include firmware 2>/dev/null | head -n 1200 > "$OUT/font-references.txt" || true
+          rg -n -i 'font.*(family|name|registry)|FreeMono|FreeSerif' firmware/web/src 2>/dev/null | head -n 800 > "$OUT/web-font-references.txt" || true
+          echo "=== Firmware font references ==="
+          cat "$OUT/font-references.txt"
+          echo "=== Web font references ==="
+          cat "$OUT/web-font-references.txt"
+          echo "Font reference reports generated."
+
+      - name: Build sdpro_caw_diag (size gate raised, diagnostic only)
+        run: |
+          cd "$ROOT/firmware"
+          set +e
+          pio run -e sdpro_caw_diag 2>&1 | tee "$GITHUB_WORKSPACE/diag-build.log"
+          STATUS=${PIPESTATUS[0]}
+          set -e
+          echo "pio exit status: $STATUS"
+
+          BUILD=".pio/build/sdpro_caw_diag"
+          if [ ! -f "$BUILD/firmware.elf" ]; then
+            echo "::error::firmware.elf was not produced; this is a compile or link failure, not the size gate."
+            tail -n 80 "$GITHUB_WORKSPACE/diag-build.log"
+            exit 1
+          fi
+          if [ "$STATUS" -ne 0 ]; then
+            if grep -q "greater than maximum allowed" "$GITHUB_WORKSPACE/diag-build.log"; then
+              echo "::warning::The size gate still tripped in sdpro_caw_diag, so the override did not take effect. The ELF exists and is usable. See diag-build.log."
+            else
+              echo "::warning::pio exited with status $STATUS but firmware.elf exists. Review diag-build.log."
+            fi
+          fi
+          REDEFINED="$(grep -c 'MINI_DISPLAY_FEATURE_TLS" redefined' "$GITHUB_WORKSPACE/diag-build.log" || true)"
+          echo "MINI_DISPLAY_FEATURE_TLS redefinition warnings: $REDEFINED"
+          grep -E '^(RAM|Flash):' "$GITHUB_WORKSPACE/diag-build.log" || true
+          echo "[diag] build dir: $BUILD"
+          ls -l "$BUILD"/firmware.* || true
+
+      - name: Flash-size reports
+        run: |
+          cd "$ROOT/firmware"
+          BUILD=".pio/build/sdpro_caw_diag"
+          OUT="$GITHUB_WORKSPACE/diag"
+          mkdir -p "$OUT"
+
+          NM="$(find "$HOME/.platformio/packages" -type f -name 'xtensa-lx106-elf-nm' -print -quit)"
+          SIZE="$(find "$HOME/.platformio/packages" -type f -name 'xtensa-lx106-elf-size' -print -quit)"
+          test -n "$NM"
+          test -n "$SIZE"
+
+          cp "$BUILD/firmware.elf" "$OUT/sdpro_caw_diag-firmware.elf"
+          if [ -f "$BUILD/firmware.map" ]; then
+            cp "$BUILD/firmware.map" "$OUT/sdpro_caw_diag-firmware.map"
+          else
+            echo "::warning::linker map not found"
+          fi
+          cp platformio.ini "$OUT/platformio.ini.as-built"
+
+          "$SIZE" -A "$BUILD/firmware.elf" > "$OUT/size-sections.txt"
+          "$SIZE" -B "$BUILD/firmware.elf" > "$OUT/size-summary.txt"
+          "$NM" -S --size-sort -C "$BUILD/firmware.elf" > "$OUT/nm-by-size.txt"
+
+          echo "=== section sizes ==="
+          cat "$OUT/size-sections.txt"
+          echo "=== berkeley summary ==="
+          cat "$OUT/size-summary.txt"
+          echo "=== 150 largest symbols ==="
+          tail -n 150 "$OUT/nm-by-size.txt"
+
+          {
+            echo "## sdpro_caw_diag flash report"
+            echo
+            echo "Diagnostic build only. Do not flash. Release OTA limit: ${RELEASE_OTA_LIMIT} bytes (unchanged)."
+            echo
+            if [ -f "$BUILD/firmware.bin" ]; then
+              BIN_SIZE="$(stat -c '%s' "$BUILD/firmware.bin")"
+              cp "$BUILD/firmware.bin" "$OUT/DO-NOT-FLASH-sdpro_caw_diag-firmware.bin"
+              sha256sum "$BUILD/firmware.bin" > "$OUT/DO-NOT-FLASH-firmware.bin.sha256"
+              echo "- firmware.bin: ${BIN_SIZE} bytes"
+              echo "- difference from release limit: $((BIN_SIZE - RELEASE_OTA_LIMIT)) bytes (positive = over)"
+            else
+              echo "- firmware.bin was not produced; use size-sections.txt for the ELF breakdown"
+            fi
+            echo
+            echo '```'
+            cat "$OUT/size-summary.txt"
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY" > "$OUT/summary.md"
+
+      - name: Upload diagnostic artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: caw-diag-elf-and-reports
+          path: |
+            diag/
+            diag-build.log
+          if-no-files-found: error
+          retention-days: 14

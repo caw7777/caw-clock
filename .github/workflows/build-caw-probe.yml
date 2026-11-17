@@ -1,0 +1,54 @@
+name: Build CAW TLS probe
+
+# Test firmware for the standalone CAW decision: measures whether HTTPS price
+# fetches fit in the heap without the dashboard engine. Not a product release.
+
+on:
+  push:
+    paths:
+      - "caw-working-source.zip"
+      - ".github/workflows/build-caw-probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      MINI_DISPLAY_BUILD_VERSION: caw-probe-1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract source
+        run: |
+          mkdir -p extracted
+          unzip -q caw-working-source.zip -d extracted
+          ROOT="$(dirname "$(find extracted -name Makefile -type f -print -quit)")"
+          test -f "$ROOT/firmware/src/CawProbe/caw_probe.cpp"
+          echo "SOURCE_ROOT=$ROOT" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build probe
+        run: |
+          python -m pip install "platformio==6.1.19"
+          cd "$SOURCE_ROOT/firmware"
+          pio run --environment sdpro_caw_probe
+
+      - name: Package
+        run: |
+          mkdir -p probe
+          cp "$SOURCE_ROOT/firmware/.pio/build/sdpro_caw_probe/firmware.bin" probe/caw-tls-probe.bin
+          (cd probe && sha256sum caw-tls-probe.bin | tee SHA256SUMS.txt)
+          stat -c 'caw-tls-probe.bin: %s bytes' probe/caw-tls-probe.bin
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: caw-tls-probe
+          path: probe/
+          if-no-files-found: error
+          retention-days: 30

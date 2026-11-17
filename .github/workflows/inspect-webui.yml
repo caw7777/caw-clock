@@ -1,0 +1,44 @@
+name: Inspect exact CAW WebUI source
+on:
+  push:
+    paths:
+      - '.github/workflows/inspect-webui.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract and inspect embedded WebUI
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir extracted
+          unzip -q caw-working-source.zip -d extracted
+          ROOT="$(dirname "$(find extracted -name Makefile -type f -print -quit)")"
+          echo "SOURCE_ROOT=$ROOT"
+          echo "=== WEB FILE TREE ==="
+          find "$ROOT/firmware/web" -maxdepth 4 -type f -not -path '*/node_modules/*' | sort
+          echo "=== PACKAGE ==="
+          cat "$ROOT/firmware/web/package.json"
+          echo "=== EMBED SCRIPT ==="
+          sed -n '1,260p' "$ROOT/firmware/scripts/embed_web.py"
+          echo "=== SOURCE FILE CONTENTS ==="
+          find "$ROOT/firmware/web" -maxdepth 4 -type f \( -name '*.svelte' -o -name '*.ts' -o -name '*.js' -o -name '*.css' -o -name '*.html' \) -not -path '*/node_modules/*' -print0 | while IFS= read -r -d '' f; do
+            echo "===== FILE: $f ====="
+            sed -n '1,320p' "$f"
+          done
+          npm ci --prefix "$ROOT/firmware/web"
+          npm --prefix "$ROOT/firmware/web" run build
+          echo "=== BUILT WEBUI TREE ==="
+          find "$ROOT/firmware/web/dist" -maxdepth 4 -type f -printf '%P %s bytes\n' | sort
+          mkdir -p webui-artifact
+          cp -a "$ROOT/firmware/web/dist/." webui-artifact/
+          tar -czf webui-artifact.tar.gz -C webui-artifact .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exact-firmware-webui
+          path: webui-artifact.tar.gz
+          retention-days: 30

@@ -1,0 +1,130 @@
+name: Build CAW Clock firmware
+
+on:
+  push:
+    paths:
+      - "caw-working-source.zip"
+      - ".github/workflows/build-firmware.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      MINI_DISPLAY_BUILD_VERSION: caw-0.2.0-test
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Extract corrected source
+        run: |
+          mkdir -p extracted
+          unzip -q caw-working-source.zip -d extracted
+          ROOT="$(dirname "$(find extracted -name Makefile -type f -print -quit)")"
+          test -n "$ROOT"
+          echo "SOURCE_ROOT=$ROOT" >> "$GITHUB_ENV"
+          echo "Using source root: $ROOT"
+          test -f "$ROOT/firmware/src/CawMarketFeed.cpp"
+          test -f "$ROOT/firmware/platformio.ini"
+          # The CAW screen, subscript price and display modes are part of the
+          # source archive; scripts/apply_caw_v2.py is no longer needed.
+          grep -q 'compactDisplayPrice(snapshot.priceUsd)' "$ROOT/firmware/src/CawMarketFeed.cpp"
+          grep -q 'kCawLayoutVersion' "$ROOT/firmware/src/main.cpp"
+          python3 "$ROOT/firmware/scripts/caw_dashboard.py" "$RUNNER_TEMP/caw-dashboard.json"
+          echo "CAW source verified."
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "platformio==6.1.19" "zopfli==0.4.1"
+          pio --version
+          node --version
+          npm --version
+
+      - name: Verify CAW TLS and build settings
+        run: |
+          grep -q 'pre:scripts/patch_bearssl_server.py' "$SOURCE_ROOT/firmware/platformio.ini"
+          grep -q 'pre:scripts/caw_font_assets.py' "$SOURCE_ROOT/firmware/platformio.ini"
+          grep -q 'sdpro_caw' "$SOURCE_ROOT/firmware/platformio.ini"
+          grep -q -- '-D MINI_DISPLAY_FEATURE_TLS=1' "$SOURCE_ROOT/firmware/platformio.ini"
+          grep -q 'MINI_DISPLAY_BUILD_VERSION' "$SOURCE_ROOT/firmware/platformio.ini"
+          echo "=== CAW-specific BearSSL configuration ==="
+          grep -RInE 'CAW_BEARSSL_TRIM|CAW_LINK_BOLD48|patch_bearssl_client|bearssl_profile_data' "$SOURCE_ROOT/firmware" || true
+          echo "=== PlatformIO profiles ==="
+          sed -n '/^\[env\]/,/^\[/p; /^\[env:sdpro\]/,/^\[/p; /^\[env:sdpro_caw\]/,/^\[/p' "$SOURCE_ROOT/firmware/platformio.ini"
+
+      - name: Install dashboard dependencies
+        run: npm ci --prefix "$SOURCE_ROOT/firmware/web"
+
+      - name: Create project virtual environment
+        run: |
+          cd "$SOURCE_ROOT"
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install "platformio==6.1.19" "zopfli==0.4.1"
+          .venv/bin/pio --version
+
+      - name: Build CAW firmware (skip unrelated formatting-only gate)
+        run: |
+          cd "$SOURCE_ROOT"
+          npm --prefix firmware/web run check
+          # HTTPS and display-mode controls are part of the CAW panel.
+          MINI_DISPLAY_FEATURE_TLS=1 MINI_DISPLAY_FEATURE_CAW=1 npm --prefix firmware/web run build
+          python3 firmware/scripts/embed_web.py
+          python3 firmware/scripts/index_smooth_fonts.py
+          PIO_BIN="$GITHUB_WORKSPACE/$SOURCE_ROOT/.venv/bin/pio"
+          cd firmware
+          "$PIO_BIN" run --environment sdpro_caw
+
+      - name: Verify firmware size and calculate SHA-256
+        run: |
+          BIN="$(find "$SOURCE_ROOT" -type f -path '*/.pio/build/sdpro_caw/firmware.bin' -print -quit)"
+          ELF="$(find "$SOURCE_ROOT" -type f -path '*/.pio/build/sdpro_caw/firmware.elf' -print -quit)"
+          test -n "$BIN"
+          test -n "$ELF"
+          BIN_SIZE="$(stat -c '%s' "$BIN")"
+          echo "Firmware binary: $BIN"
+          echo "Binary size: $BIN_SIZE bytes"
+          sha256sum "$BIN"
+          test "$BIN_SIZE" -le 1044464
+          echo "OTA binary slot check passed (maximum 1,044,464 bytes)."
+          grep -E 'RAM:|Flash:' "$SOURCE_ROOT"/firmware/.pio/build/sdpro_caw/*.log 2>/dev/null || true
+          echo "BIN_PATH=$BIN" >> "$GITHUB_ENV"
+
+      - name: Package exact source tree used for build
+        run: |
+          mkdir -p release
+          tar -czf release/caw-working-source-verified.tar.gz \
+            --exclude='.git' --exclude='.venv' --exclude='node_modules' \
+            --exclude='.pio' --exclude='__pycache__' \
+            -C "$(dirname "$SOURCE_ROOT")" "$(basename "$SOURCE_ROOT")"
+          cp "$BIN_PATH" release/sdpro_caw-firmware.bin
+          sha256sum release/sdpro_caw-firmware.bin | tee release/SHA256SUMS.txt
+          cat > release/BUILD-INFO.txt <<EOF
+          Source root: $SOURCE_ROOT
+          Profile: sdpro_caw
+          OTA slot maximum: 1044464 bytes
+          Firmware binary size: $(stat -c '%s' release/sdpro_caw-firmware.bin) bytes
+          Build commit: $GITHUB_SHA
+          EOF
+
+      - name: Upload verified release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: caw-clock-verified-release
+          path: release/
+          if-no-files-found: error
+          retention-days: 30

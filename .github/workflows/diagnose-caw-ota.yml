@@ -1,0 +1,34 @@
+name: Inspect dashboard rendering and APIs
+on:
+  push:
+    paths:
+      - '.github/workflows/diagnose-caw-ota.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir extracted
+          unzip -q caw-working-source.zip -d extracted
+          ROOT="$(dirname "$(find extracted -name Makefile -type f -print -quit)")"
+          echo "=== DASHBOARD STORAGE ==="
+          sed -n '70,120p;1330,1415p;2260,2335p' "$ROOT/firmware/src/main.cpp"
+          echo "=== API DISPLAY / DASHBOARD HANDLERS ==="
+          grep -n -E 'void (sendApiDashboard|receiveApiDashboard|receiveApiDisplay|sendApiStatus)|void loop\(|void setup\(' "$ROOT/firmware/src/main.cpp"
+          echo "=== API HANDLERS AND SETUP ==="
+          sed -n '1550,1660p;1720,1900p;3025,3090p;3170,3245p' "$ROOT/firmware/src/main.cpp"
+          echo "=== CAW RENDER HOOKS ==="
+          grep -n -B 8 -A 12 -E 'cawMarketFeed|CAW|cawClock|renderDashboard|renderCurrent|dashboardRenderer' "$ROOT/firmware/src/main.cpp" | tail -n 450
+          echo "=== DUAL WEB SERVER AND IMAGE API ==="
+          grep -RIn -E "class DualWebServer|hasArg|arg\(" "$ROOT/firmware/src" | head -n 160 || true
+          sed -n "1,150p" "$ROOT/firmware/src/DualWebServer.h"
+          sed -n "1650,1755p;1900,1975p;3170,3225p" "$ROOT/firmware/src/main.cpp"
+          sed -n "1,180p" "$ROOT/firmware/web/src/pages/display.ts"
+          sed -n "1,100p" "$ROOT/firmware/web/src/api.ts"
+          sed -n "1,120p" "$ROOT/firmware/src/ImageAssetApi.cpp"
+          echo "=== API MOCKS ==="
+          grep -RIn -E 'api/v1/display|api/v1/dashboard|DeviceStatus' "$ROOT/firmware/web" | head -n 150 || true

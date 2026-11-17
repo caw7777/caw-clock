@@ -1,0 +1,160 @@
+name: Release CAW Clock firmware
+
+# Builds the CAW Clock firmware (CAW only, env sdpro_caw_standalone) attached
+# to a GitHub release from the tagged commit.
+# The version shown by the clock is the tag without its leading "v". The
+# release is refused if the image does not fit the 1,044,464-byte OTA slot.
+
+on:
+  release:
+    types: [published]
+  # Dry run of the whole release build (no upload), e.g. before publishing.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to stamp, e.g. 0.2.0-test"
+        required: true
+        default: "0.0.0-test"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref }}
+
+      - name: Set firmware version from tag
+        env:
+          TAG: ${{ github.event.release.tag_name || inputs.version }}
+        run: |
+          VERSION="${TAG#v}"
+          echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+          echo "MINI_DISPLAY_BUILD_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Extract source
+        run: |
+          mkdir -p extracted
+          unzip -q caw-working-source.zip -d extracted
+          ROOT="$(dirname "$(find extracted -name Makefile -type f -print -quit)")"
+          test -n "$ROOT"
+          echo "SOURCE_ROOT=$ROOT" >> "$GITHUB_ENV"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: |
+          python -m pip install "platformio==6.1.19"
+          (cd "$SOURCE_ROOT/firmware" && pio pkg install --environment sdpro)
+
+      - name: Native tests
+        run: make -C "$SOURCE_ROOT" test-native
+
+      - name: Build firmware (CAW only)
+        run: |
+          set -o pipefail
+          cd "$SOURCE_ROOT/firmware"
+          pio run --environment sdpro_caw_standalone 2>&1 | tee build.log
+          if grep -q "warning:" build.log; then echo "::error::compiler warnings"; exit 1; fi
+
+      - name: Check size and package assets
+        run: |
+          BIN="$SOURCE_ROOT/firmware/.pio/build/sdpro_caw_standalone/firmware.bin"
+          SIZE="$(stat -c '%s' "$BIN")"
+          echo "firmware.bin: $SIZE bytes (OTA slot 1044464)"
+          test "$SIZE" -le 1044464
+          mkdir -p release
+          NAME="caw-clock-$VERSION"
+          cp "$BIN" "release/$NAME.bin"
+          tar -czf "release/$NAME-source.tar.gz" \
+            --exclude='.pio' --exclude='node_modules' --exclude='dist' \
+            -C "$(dirname "$SOURCE_ROOT")" "$(basename "$SOURCE_ROOT")"
+          cp "$SOURCE_ROOT/LICENSE" "$SOURCE_ROOT/THIRD_PARTY.md" release/
+
+      # LGPL-2.1 (ESP8266 Arduino core): the exact framework sources used for
+      # this build (incl. our HTTP parser patch), library sources and the
+      # compiled objects, so the firmware can be rebuilt or relinked with a
+      # modified core. Extract next to the source archive; see RELINKING.md.
+      - name: Package relink archive
+        run: |
+          set -euo pipefail
+          CORE="${PLATFORMIO_CORE_DIR:-$HOME/.platformio}"
+          FW="$SOURCE_ROOT/firmware"
+          ROOTNAME="$(basename "$SOURCE_ROOT")"
+          STAGE="relink/$ROOTNAME"
+          mkdir -p "$STAGE/.platformio/packages" "$STAGE/firmware/.pio/build"
+          for pkg in "$CORE"/packages/*; do
+            name="$(basename "$pkg")"
+            case "$name" in
+              framework-*) cp -a "$pkg" "$STAGE/.platformio/packages/" ;;
+              # Toolchains: version record only, not the compiler executables.
+              *) if [ -f "$pkg/package.json" ]; then
+                   mkdir -p "$STAGE/.platformio/packages/$name"
+                   cp "$pkg/package.json" "$STAGE/.platformio/packages/$name/"
+                 fi ;;
+            esac
+          done
+          cp -a "$CORE/platforms" "$STAGE/.platformio/platforms"
+          cp -a "$FW/.pio/libdeps" "$STAGE/firmware/.pio/libdeps"
+          cp -a "$FW/.pio/build/sdpro_caw_standalone" "$STAGE/firmware/.pio/build/"
+          find "$STAGE" -name .git -prune -exec rm -rf {} +
+          cat > "$STAGE/RELINKING.md" <<EOF
+          # Rebuilding or relinking CAW Clock $VERSION
+
+          This archive holds the build inputs that are not in
+          caw-clock-$VERSION-source.tar.gz: the ESP8266 Arduino core and SDK
+          exactly as built (LGPL-2.1 and component licences, including our
+          ESP8266WebServer parser patch), the library sources, and the compiled
+          objects of the sdpro_caw_standalone build.
+
+          1. Extract caw-clock-$VERSION-source.tar.gz and this archive into the
+             same folder (both start with $ROOTNAME/), then cd into it.
+          2. Install Python 3.12 and PlatformIO 6.1.19. The toolchain folders
+             under .platformio/packages hold only package.json (version record);
+             delete them so PlatformIO installs those versions:
+               find .platformio/packages -mindepth 1 -maxdepth 1 ! -name 'framework-*' -exec rm -rf {} +
+          3. export PLATFORMIO_CORE_DIR="\$PWD/.platformio"
+          4. Change the framework or library sources as you like, then:
+               cd firmware && pio run -e sdpro_caw_standalone
+          5. Install .pio/build/sdpro_caw_standalone/firmware.bin from the
+             clock's settings page: System, Firmware.
+          EOF
+          tar -czf "release/caw-clock-$VERSION-relink.tar.gz" -C relink "$ROOTNAME"
+          ls -l release
+
+      - name: Checksums
+        run: |
+          (cd release && sha256sum caw-clock-* LICENSE THIRD_PARTY.md > SHA256SUMS.txt)
+          cat release/SHA256SUMS.txt
+
+      # Not a release asset: kept with the run to decode crash reports
+      # (lastCrash) from this release.
+      - name: Keep firmware symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-symbols-${{ env.VERSION }}
+          path: ${{ env.SOURCE_ROOT }}/firmware/.pio/build/sdpro_caw_standalone/firmware.elf
+          retention-days: 90
+
+      - name: Keep dry-run assets
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dry-run
+          path: release/
+          retention-days: 7
+
+      - name: Attach assets to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" release/* --clobber --repo "$GITHUB_REPOSITORY"
