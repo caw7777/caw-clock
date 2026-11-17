@@ -87,21 +87,53 @@ is built into the firmware (the default time zone is UTC).
 
 ## Building
 
-The firmware source is in `caw-working-source.zip` (PlatformIO,
-espressif8266@4.2.1). CI builds it on every push:
+The firmware source is in `caw-working-source.zip` (PlatformIO 6.1.19,
+`espressif8266@4.2.1`, Python 3.12). To build the release firmware yourself:
 
-| Workflow | Builds |
+```sh
+unzip caw-working-source.zip -d build && cd build/caw-working
+pip install "platformio==6.1.19"
+(cd firmware && pio pkg install -e sdpro)
+make test-native                      # native unit tests
+cd firmware && pio run -e sdpro_caw_standalone
+```
+
+The image is `firmware/.pio/build/sdpro_caw_standalone/firmware.bin`; it must
+stay under the 1,044,464-byte OTA slot.
+
+### CI
+
+| Workflow | Runs | Does |
+|---|---|---|
+| Build CAW standalone | changes to the source zip | CAW firmware (`sdpro_caw_standalone`) + native tests |
+| Release CAW Clock firmware | a release is published (or manual dry run) | builds and attaches the release files |
+| Build CAW TLS probe | changes to the source zip | HTTPS test firmware (`sdpro_caw_probe`) |
+| Build CAW + Home Assistant | manual only | CAW + HA firmware (`sdpro_caw_ha`), on hold: over the flash limit |
+
+The other workflows (`build-firmware`, `diagnose-*`, `inspect-*`) are
+development diagnostics.
+
+### Release files
+
+| File | What |
 |---|---|
-| Build CAW standalone | the CAW-only firmware (`sdpro_caw_standalone`) + native tests |
-| Release CAW Clock firmware | the release assets, when a release is published |
-| Build CAW + Home Assistant | CAW + HA firmware (`sdpro_caw_ha`), on hold, manual runs |
+| `caw-clock-<version>.bin` | the firmware |
+| `SHA256SUMS.txt` | checksums of all files |
+| `caw-clock-<version>-source.tar.gz` | project source used for the build |
+| `caw-clock-<version>-relink.tar.gz` | ESP8266 core, SDK and libraries as built, plus compiled objects, for rebuilding with a modified core (LGPL); see `RELINKING.md` inside |
+| `LICENSE`, `THIRD_PARTY.md` | licences and third-party notices |
 
 Asset scripts (run by hand, outputs committed): `caw_chain_icons.py`
-(chain logos), `caw_memes.py` (bundled pictures), `caw_timezones.py` (time
+(chain logos), `caw_memes.py` (bundled memes), `caw_timezones.py` (time
 zones from the IANA database).
 
 Changes: [CHANGELOG.md](CHANGELOG.md).
 
-Based on [Home Assistant Mini Display](https://github.com/piotrkochan/homeassistant-minidisplay);
-third-party notices are in `THIRD_PARTY.md` inside the source archive. Chain
+## Licence
+
+MIT, see [LICENSE](LICENSE). Based on
+[Home Assistant Mini Display](https://github.com/piotrkochan/homeassistant-minidisplay)
+by Piotr Kochan (MIT). Third-party components keep their own licences, listed
+in `THIRD_PARTY.md` (in the source zip and attached to every release). Chain
 logos are trademarks of their owners and only identify which chain is shown.
+The built-in memes are community images and are not covered by the MIT licence.
