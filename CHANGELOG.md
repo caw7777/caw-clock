@@ -12,10 +12,15 @@
   10%; Display tab), the clock shows that chain and the price flashes green
   or red for 5 minutes.
 - 12- or 24-hour clock (Display tab).
-- Smoother, more efficient performance; cleaner progress display while
-  updating.
+- Smoother, more efficient performance: more free memory, a firmware about
+  40 KB smaller (quicker updates) and lighter settings pages; cleaner progress
+  display while updating.
+- Dependable over long running times; a chain on the backup price source
+  returns to DexScreener by itself; room for longer custom time zones.
+- Setup network key made with the Wi-Fi radio on, for full randomness.
 - `/api/status`: `freeContStackBoot`, `stackLowWork`, `rollbackCopy`, per-chain
-  `alert`; `tlsStackMax` now reports the TLS stack's real peak.
+  `alert`, `not_listed` when DexScreener doesn't list a pool; `tlsStackMax`
+  now reports the TLS stack's real peak.
 
 ## v0.3.0
 

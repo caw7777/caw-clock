@@ -44,7 +44,9 @@ Find the firmware your clock runs now:
 
 1. Open the clock's settings page (`http://<clock address>/`) and sign in as
    **admin** with your clock password.
-2. Scroll to **Firmware**, choose the `.bin` file, press **Install firmware**.
+2. On v0.4.0 or later: **System** tab → **Check for updates** → **Install**.
+   Otherwise: **System** tab → **Install a file**, choose the `.bin` file,
+   press **Install firmware**.
 3. The screen shows **Updating**; the clock restarts by itself (about a
    minute). Your Wi-Fi, password and settings are kept.
 

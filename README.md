@@ -37,7 +37,7 @@ and check it against `SHA256SUMS.txt`.
 
 | Clock is running | How to install |
 |---|---|
-| CAW Clock firmware | Settings page → **Firmware** → choose the `.bin` → **Install firmware** |
+| CAW Clock firmware | Settings page → **System** → **Install a file**: choose the `.bin` → **Install firmware** |
 | [Home Assistant Mini Display](https://github.com/piotrkochan/homeassistant-minidisplay) firmware | Its **Firmware** page → upload the `.bin` |
 | The original (stock) firmware | The stock updater can't take a full firmware. First install the Mini Display firmware with its bootstrap ([instructions](https://github.com/piotrkochan/homeassistant-minidisplay#readme)), then upload the CAW `.bin` from its Firmware page. A CAW bootstrap is planned. |
 
