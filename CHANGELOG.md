@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.5.0
+
+- **Burn alert:** when someone bridges CAW, the 0.5% the bridge burns takes
+  over the screen for 20 seconds: the amount burned, the route (e.g. "bsc to
+  solana"), the amount bridged and the total burned, counted the same way as
+  the CAW Discord's burn bot. The clock reads the bridge's contracts on
+  Cronos, BSC, Base, Polygon, Arbitrum and Robinhood every few minutes;
+  bridges from Solana count too (their burn happens when they arrive). At
+  most one alert every 10 minutes; burns in between are added up ("3
+  bridges").
+  - Display tab: **Burn alert** on/off (on by default) and **Preview the burn
+    alert**.
+  - Status tab: **Burns**: total burned, the last burns, each chain's last
+    check.
+  - `/api/status`: `burns`.
+- Memes tab: **Show all** and **Hide all** for the built-in and uploaded memes
+  (to keep just one: Hide all, then Show that one).
+- Setup screen: the Wi-Fi problem ("check the Wi-Fi password") fits on the
+  screen.
+- Pages shown just before a restart (Wi-Fi saved during setup, factory reset,
+  update installed) now arrive complete.
+- Installer for clocks on the factory firmware: status messages use a second
+  line when needed instead of being cut off.
+
 ## v0.4.0
 
 - Update from the settings page: **System → Check for updates**, then

@@ -17,6 +17,10 @@ price display. It runs on its own: no Home Assistant, server or account.
 - a price alert: when a chain makes a big move in an hour, the clock jumps to
   it and the price flashes green (up) or red (down) for 5 minutes
   ([picture](docs/price-alert.png))
+- a burn alert: when someone bridges CAW, the 0.5% the bridge burns takes over
+  the screen for 20 seconds, with the route ("bsc to solana"), the amount
+  bridged and the total burned
+  ([picture](docs/burn-alert.png))
 
 It rotates through the main CAW pool on **Cronos, Solana, Base and
 Robinhood**, each with its chain logo. You choose the chains and the time on
@@ -24,6 +28,12 @@ each in the settings page. Market cap is always the overall CAW figure.
 
 Prices come from DexScreener, with GeckoTerminal as a backup and for chart
 history, over HTTPS with certificate checks.
+
+Burns come straight from the bridge's contracts: the clock asks public
+blockchain servers (RPC) on Cronos, BSC, Base, Polygon, Arbitrum and
+Robinhood for the bridge's burn events every few minutes, and Solana's for
+its CAW supply. The total burned is counted the way the CAW Discord's burn
+bot counts it.
 
 ## Install
 
@@ -64,10 +74,13 @@ password") and reopens the setup network after 2 minutes.
 
 Four tabs:
 
-- **Status**: price and last update for each chain; the clock's address, signal and memory
+- **Status**: price and last update for each chain; total burned, the last
+  burns and each chain's last check; the clock's address, signal and memory
 - **Display**: brightness, night mode, chains, time on each chain, price
-  alert, 12- or 24-hour clock, time zone (63 zones)
-- **Memes**: rotation, and the meme library (add, hide, delete)
+  alert, burn alert (on/off, **Preview the burn alert**), 12- or 24-hour clock,
+  time zone (63 zones)
+- **Memes**: rotation, and the meme library (add, hide, delete, show all /
+  hide all)
 - **System**: Wi-Fi, clock password, check for updates, firmware install,
   restart, factory reset
 - `http://<clock address>/api/status`: everything as JSON, including memory
@@ -81,7 +94,8 @@ is built into the firmware (the default time zone is UTC).
 
 ## Safety and security
 
-- Price data: HTTPS with certificate validation (GTS and ISRG roots).
+- Price and burn data: HTTPS with certificate validation (GTS, ISRG, SSL.com
+  and USERTrust roots).
 - Settings page: HTTP on your network with Digest sign-in, so the password is
   never sent in clear; page content isn't encrypted.
 - Firmware uploads need the clock password (or the setup network, whose key is
