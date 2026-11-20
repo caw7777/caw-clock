@@ -2,6 +2,7 @@
 
 ## v0.6.0
 
+- The "crow with knife" title on the chain screens is in the Bangers font.
 - **Supply screen** (Display tab): where CAW is, like the
   CAW site's supply panel: a ring of each chain's share, the circulating
   supply, total burned, holders, and a row per chain with its share and
@@ -18,6 +19,10 @@
   in a row, each time for under 10 seconds. It opens its setup network for
   15 minutes with the key on screen, where a new password can be set.
   Settings and memes are kept.
+- Check for updates → Install: more memory for the download, and when
+  memory is too broken up the clock says so and tries again instead of
+  restarting. An update tried before a new release's files are attached says
+  to try again in a few minutes.
 - About 4 KB more free memory during every price, burn and holder check:
   the clock loads only the certificates its servers use (the two larger
   ones only if a server ever needs them). After long running times this
