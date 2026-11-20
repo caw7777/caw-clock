@@ -2,7 +2,8 @@
 
 ## v0.6.0
 
-- The "crow with knife" title on the chain screens is in the Bangers font.
+- The CAW brand fonts: the "crow with knife" title in Bangers, all other
+  text in Outfit.
 - **Supply screen** (Display tab): where CAW is, like the
   CAW site's supply panel: a ring of each chain's share, the circulating
   supply, total burned, holders, and a row per chain with its share and
