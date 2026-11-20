@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.6.0
+
+- **Supply screen** (Display tab): where CAW is, like the
+  CAW site's supply panel: a ring of each chain's share, the circulating
+  supply, total burned, holders, and a row per chain with its share and
+  holders. Shown once each round of chains.
+- **BSC** as a fifth price chain (PancakeSwap CAW/WBNB): choose it under
+  Chains on the Display tab.
+- New clocks show a new meme with each chain (it was every minute). Clocks
+  already set up keep their choice (Memes tab).
+- A chain with no trades in the last hour shows its 1H change as +0.0%
+  instead of "N/A".
+- Burn alert: the route shows each chain's logo ("[logo] bsc to [logo]
+  solana"), now for BSC, Polygon and Arbitrum too.
+- **Recovery mode** for a forgotten clock password: plug the clock in 3 times
+  in a row, each time for under 10 seconds. It opens its setup network for
+  15 minutes with the key on screen, where a new password can be set.
+  Settings and memes are kept.
+- About 4 KB more free memory during every price, burn and holder check:
+  the clock loads only the certificates its servers use (the two larger
+  ones only if a server ever needs them). After long running times this
+  keeps clear of the memory limit at which a check is skipped.
+- Security: a clock without a password answers only at its own address or
+  network name, so a malicious website can't reach its settings through a
+  domain pointed at the clock (DNS rebinding). Clocks with a password were
+  not affected.
+
 ## v0.5.0
 
 - **Burn alert:** when someone bridges CAW, the 0.5% the bridge burns takes

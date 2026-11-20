@@ -115,19 +115,21 @@ Prices and the chart appear within a minute or two.
 
 Settings page: `http://<clock address>/`, user **admin**, your clock password.
 
-- **Display:** brightness, which chains to show and for how long, picture
-  rotation, time zone, night mode (next release).
-- **Wi-Fi / Clock password:** change either at any time.
-- **Firmware:** install updates (route A).
-- **Factory reset:** erases Wi-Fi, password and settings. Do this before you
-  give the clock away or sell it.
+- **Status:** prices, burns, and the clock's address, signal and memory.
+- **Display:** brightness, night mode, which chains to show and for how long,
+  price alert, burn alert, supply screen, 12- or 24-hour clock, time zone.
+- **Memes:** rotation, and adding or hiding memes.
+- **System:** Wi-Fi and clock password (change either at any time), check
+  for updates and install them (route A), restart, factory reset. A factory
+  reset erases Wi-Fi, password and settings: do this before you give the
+  clock away or sell it.
 
 ## Troubleshooting
 
 | What you see | What to do |
 |---|---|
 | **Can't join Wi-Fi** / **Wi-Fi lost** with a reason | The clock reopens its setup network 2 minutes after losing Wi-Fi. Join it and fix the details. "network not found" usually means a typo or a 5 GHz-only network; "check the Wi-Fi password" means the password was refused. |
-| Forgot the clock password | Unplug your router (or move the clock out of range) for 2 minutes. When the clock shows its setup network, join it, open `http://192.168.4.1` and enter a new clock password. |
+| Forgot the clock password | **Recovery mode:** unplug the clock and plug it back in **3 times in a row**, each time within 10 seconds. The screen shows **Recovery** with its setup network and key: join it, open `http://192.168.4.1` and enter a new clock password (leave the Wi-Fi password empty to keep it). Settings and memes are kept. The setup network closes by itself after 15 minutes. (Or: switch off your router for 2 minutes; the clock then opens its setup network too.) |
 | Can't find the clock's address | Look for **caw-clock** in your router's list of devices, or restart the clock and read the **Connected** screen. |
 | Prices show `--` | Normal for the first minute. If it stays, check the clock has internet; `http://<clock address>/api/status` shows each chain's last result. |
 | **Safe mode** on the screen | The clock restarted several times in a row, so it paused price updates. The settings page still works: press **Restart normally**, or install other firmware. Please report it with a screenshot of `/api/status`. |

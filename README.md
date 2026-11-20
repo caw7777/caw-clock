@@ -6,6 +6,8 @@ price display. It runs on its own: no Home Assistant, server or account.
 
 ![CAW Clock on its four chains: Cronos, Solana, Base and Robinhood](docs/caw-screens.png)
 
+![BSC, a burn alert and the supply screen](docs/caw-screens-new.png)
+
 ## What it shows
 
 - CAW price with a subscript zero count (`$0.0₈4785`), 1H and 24H change
@@ -18,12 +20,16 @@ price display. It runs on its own: no Home Assistant, server or account.
   it and the price flashes green (up) or red (down) for 5 minutes
   ([picture](docs/price-alert.png))
 - a burn alert: when someone bridges CAW, the 0.5% the bridge burns takes over
-  the screen for 20 seconds, with the route ("bsc to solana"), the amount
-  bridged and the total burned
+  the screen for 20 seconds, with the route and each chain's logo ("bsc to
+  solana"), the amount bridged and the total burned
   ([picture](docs/burn-alert.png))
+- a supply screen: where CAW is, with each chain's share in a ring, the
+  circulating supply, total burned and holders
+  ([picture](docs/supply-screen.png))
 
-It rotates through the main CAW pool on **Cronos, Solana, Base and
-Robinhood**, each with its chain logo. You choose the chains and the time on
+It rotates through the main CAW pool on **Cronos, Solana, Base,
+Robinhood and BSC**, each with its chain logo.
+You choose the chains and the time on
 each in the settings page. Market cap is always the overall CAW figure.
 
 Prices come from DexScreener, with GeckoTerminal as a backup and for chart
@@ -34,6 +40,10 @@ blockchain servers (RPC) on Cronos, BSC, Base, Polygon, Arbitrum and
 Robinhood for the bridge's burn events every few minutes, and Solana's for
 its CAW supply. The total burned is counted the way the CAW Discord's burn
 bot counts it.
+
+The supply screen adds up each chain's CAW supply from the same blockchain
+servers; holder counts come from GeckoTerminal (Solana counts both CAW
+tokens, as the CAW site does).
 
 ## Install
 
@@ -68,6 +78,10 @@ Don't unplug the clock while it restarts after an install.
 If it can't join, it says why ("network not found", "check the Wi-Fi
 password") and reopens the setup network after 2 minutes.
 
+Forgot the clock password? Plug the clock in 3 times in a row, each time for
+under 10 seconds: it opens its setup network for 15 minutes so you can set a
+new one. Settings and memes are kept ([details](INSTALL.md#troubleshooting)).
+
 ## Settings page
 
 `http://<clock address>/` (sign in as **admin**):
@@ -76,8 +90,9 @@ Four tabs:
 
 - **Status**: price and last update for each chain; total burned, the last
   burns and each chain's last check; the clock's address, signal and memory
-- **Display**: brightness, night mode, chains, time on each chain, price
-  alert, burn alert (on/off, **Preview the burn alert**), 12- or 24-hour clock,
+- **Display**: brightness, night mode, chains (Cronos, Solana, Base,
+  Robinhood, BSC), time on each chain, price alert, burn alert (on/off,
+  **Preview the burn alert**), supply screen (on/off), 12- or 24-hour clock,
   time zone (63 zones)
 - **Memes**: rotation, and the meme library (add, hide, delete, show all /
   hide all)
@@ -100,6 +115,12 @@ is built into the firmware (the default time zone is UTC).
   never sent in clear; page content isn't encrypted.
 - Firmware uploads need the clock password (or the setup network, whose key is
   only shown on the clock's screen). Images are not signed.
+- Without a clock password, the settings page answers only at the clock's
+  own address or network name, so a website can't reach it through a domain
+  pointed at the clock (DNS rebinding). Set a password anyway.
+- **Recovery mode:** three quick power-ons (each under 10 seconds) open the
+  setup network for 15 minutes to set a new clock password. Like setup, it
+  needs the key shown only on the clock's screen. Nothing is erased.
 - **Safe mode:** after three quick restarts in a row the clock stops fetching
   prices and keeps the settings page and firmware upload working.
 - **Updates from the settings page** are downloaded from this repository's
