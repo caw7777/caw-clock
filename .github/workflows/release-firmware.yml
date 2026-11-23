@@ -1,7 +1,8 @@
 name: Release CAW Clock firmware
 
-# Builds the CAW Clock firmware (CAW only, env sdpro_caw_standalone) attached
-# to a GitHub release from the tagged commit.
+# Builds the CAW Clock firmware attached to a GitHub release from the tagged
+# commit: the ESP8266 board's (CAW only, env sdpro_caw_standalone) and the
+# ESP32-C2 board's ("SDC2", caw-c2/, ESP-IDF), each with its installer.
 # The version shown by the clock is the tag without its leading "v". The
 # release is refused if the image does not fit the 1,044,464-byte OTA slot.
 
@@ -93,6 +94,47 @@ jobs:
           cp .pio/build/sdpro_caw_installer/firmware.bin \
             "$GITHUB_WORKSPACE/release/SDP-CAW-Clock-Installer-$VERSION.bin"
 
+      # SD PRO clocks with an ESP32-C2 board ("SDC2"): the same app on ESP-IDF
+      # 5.5 (pioarduino platform, which needs PlatformIO Core 6.2: pinned to the
+      # commit the firmware was tested with), after the ESP8266 build above
+      # (it reuses that build's ArduinoJson). Its own PlatformIO and core dir,
+      # so the ESP8266 relink archive below stays as it was.
+      - name: Test SDC2 web server stand-in
+        run: |
+          sudo apt-get install -y libssl-dev >/dev/null
+          "$SOURCE_ROOT/caw-c2/test/webserver_test/run.sh"
+
+      - name: Build SDC2 firmware and installer
+        run: |
+          set -o pipefail
+          python -m venv "$RUNNER_TEMP/pio62"
+          "$RUNNER_TEMP/pio62/bin/pip" install --quiet \
+            "platformio @ https://github.com/platformio/platformio-core/archive/d8c21353ee2eccae6ecb5a3a95f8e75612e8887a.zip"
+          export PLATFORMIO_CORE_DIR="$RUNNER_TEMP/pio62-core"
+          PIO="$RUNNER_TEMP/pio62/bin/pio"
+          C2="$SOURCE_ROOT/caw-c2"
+          RELEASE="$GITHUB_WORKSPACE/release"
+          # Our sources only: ESP-IDF's own components are not ours to fix.
+          gate() { if grep -E "(caw-c2|firmware/src)/[^ ]*: warning:" "$1"; then echo "::error::compiler warnings"; exit 1; fi; }
+          (cd "$C2" && "$PIO" run 2>&1 | tee build.log)
+          gate "$C2/build.log"
+          BIN="$C2/.pio/build/sdc2/firmware.bin"
+          SIZE="$(stat -c '%s' "$BIN")"
+          echo "SDC2 firmware.bin: $SIZE bytes (app slot 1572864)"
+          test "$SIZE" -le 1572864
+          cp "$BIN" "$RELEASE/caw-clock-sdc2-$VERSION.bin"
+          # The installer downloads exactly this release's SDC2 .bin, checked
+          # against its SHA-256 built in here.
+          export CAW_INSTALLER_VERSION="$VERSION"
+          export CAW_INSTALLER_SHA256="$(sha256sum "$RELEASE/caw-clock-sdc2-$VERSION.bin" | cut -d' ' -f1)"
+          (cd "$C2/installer" && "$PIO" run 2>&1 | tee build.log)
+          gate "$C2/installer/build.log"
+          INSTALLER="$C2/installer/.pio/build/sdc2_installer/firmware.bin"
+          SIZE="$(stat -c '%s' "$INSTALLER")"
+          echo "SDC2 installer: $SIZE bytes (factory app slot 786432)"
+          test "$SIZE" -le 786432
+          cp "$INSTALLER" "$RELEASE/SDC2-CAW-Clock-Installer-$VERSION.bin"
+
       # LGPL-2.1 (ESP8266 Arduino core): the exact framework sources used for
       # this build (incl. our HTTP parser patch), library sources and the
       # compiled objects, so the firmware can be rebuilt or relinked with a
@@ -149,7 +191,7 @@ jobs:
 
       - name: Checksums
         run: |
-          (cd release && sha256sum caw-clock-* SDP-CAW-Clock-Installer-* LICENSE THIRD_PARTY.md > SHA256SUMS.txt)
+          (cd release && sha256sum caw-clock-* SDP-CAW-Clock-Installer-* SDC2-CAW-Clock-Installer-* LICENSE THIRD_PARTY.md > SHA256SUMS.txt)
           cat release/SHA256SUMS.txt
 
       # Not a release asset: kept with the run to decode crash reports
@@ -159,6 +201,13 @@ jobs:
         with:
           name: firmware-symbols-${{ env.VERSION }}
           path: ${{ env.SOURCE_ROOT }}/firmware/.pio/build/sdpro_caw_standalone/firmware.elf
+          retention-days: 90
+
+      - name: Keep SDC2 firmware symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-symbols-sdc2-${{ env.VERSION }}
+          path: ${{ env.SOURCE_ROOT }}/caw-c2/.pio/build/sdc2/firmware.elf
           retention-days: 90
 
       - name: Keep dry-run assets
