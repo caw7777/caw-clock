@@ -86,6 +86,11 @@ Don't unplug the clock while it restarts after an install.
 If it can't join, it says why ("network not found", "check the Wi-Fi
 password") and reopens the setup network after 2 minutes.
 
+**ESP32-C2 board after its installer:** the clock joins the Wi-Fi it already
+used and shows its settings-page address, without a setup network. Open it
+and straight away set a clock password (**System** tab) and your time zone
+(**Display** tab; until then the clock shows UTC).
+
 Forgot the clock password? Plug the clock in 3 times in a row, each time for
 under 10 seconds: it opens its setup network for 15 minutes so you can set a
 new one. Settings and memes are kept ([details](INSTALL.md#troubleshooting)).
@@ -97,7 +102,8 @@ new one. Settings and memes are kept ([details](INSTALL.md#troubleshooting)).
 Four tabs:
 
 - **Status**: price and last update for each chain; total burned, the last
-  burns and each chain's last check; the clock's address, signal and memory
+  burns (each with a link to its transaction) and each chain's last check;
+  the clock's address, signal and memory
 - **Display**: brightness, night mode, chains (Cronos, Solana, Base,
   Robinhood, BSC), time on each chain, price alert, burn alert (on/off,
   **Preview the burn alert**), supply screen (on/off), 12- or 24-hour clock,
@@ -184,6 +190,7 @@ cd installer && pio run               # the installer, at most 786,432 bytes
 |---|---|
 | `caw-clock-<version>.bin` | the firmware (ESP8266 board) |
 | `caw-clock-sdc2-<version>.bin` | the firmware (ESP32-C2 board) |
+| `SDP-CAW-Clock-Installer-<version>.bin` | installer for ESP8266 clocks on their stock firmware |
 | `SDC2-CAW-Clock-Installer-<version>.bin` | installer for ESP32-C2 clocks on their factory firmware |
 | `SHA256SUMS.txt` | checksums of all files |
 | `caw-clock-<version>-source.tar.gz` | project source used for the build |
@@ -191,8 +198,9 @@ cd installer && pio run               # the installer, at most 786,432 bytes
 | `LICENSE`, `THIRD_PARTY.md` | licences and third-party notices |
 
 Asset scripts (run by hand, outputs committed): `caw_chain_icons.py`
-(chain logos), `caw_memes.py` (bundled memes), `caw_timezones.py` (time
-zones from the IANA database).
+(chain logos), `caw_memes.py` (bundled memes), `caw_furnace.py` (The Great
+Furnace's burn picture), `caw_timezones.py` (time zones from the IANA
+database).
 
 Changes: [CHANGELOG.md](CHANGELOG.md).
 
