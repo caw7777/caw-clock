@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.7.0
+
+- **New model: the SD PRO with an ESP32-C2 board ("SDC2").** Newer SD PRO
+  clocks have an ESP32-C2 instead of the ESP8266. CAW Clock now runs on them
+  with the same screens, settings page, memes, alerts and updates. Install it
+  from the clock's factory update page with
+  `SDC2-CAW-Clock-Installer-<version>.bin`: the installer joins the Wi-Fi the
+  clock already uses, downloads CAW Clock from this release, checks it and
+  starts it ([INSTALL.md](INSTALL.md#4-install-on-the-sd-pro-with-an-esp32-c2-board-sdc2)).
+- **Direct burns on Cronos:** CAW sent straight to the dead wallet now gets a
+  burn alert too: the amount, who burned it and the total burned. The Great
+  Furnace's burns have their own picture. Bridge burns show as before.
+  The Status tab's last burns link each burn's transaction on the chain's
+  explorer.
+- **Install a file** (System tab) checks that a firmware file is for this
+  clock's board before installing anything, and refuses the other board's
+  file ("This file is not firmware for this clock"). Check for updates checks
+  the same.
+- **One-file install from the stock firmware** on the ESP8266 board too:
+  `SDP-CAW-Clock-Installer-<version>.bin` through the clock's own update page
+  sets up Wi-Fi, the clock password and the time zone, then downloads, checks
+  and installs CAW Clock (no Mini Display step).
+- Prices always show four digits after the zero count (`$0.0₈4370`, was
+  `$0.0₈437` when a source sent fewer), so every chain's price has the same
+  width.
+
 ## v0.6.0
 
 - **Supply screen** (Display tab): where CAW is, like the

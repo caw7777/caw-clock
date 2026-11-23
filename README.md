@@ -1,8 +1,8 @@
 # crow with knife - Clock Firmware
 
-Custom firmware that turns a **JUZIPi SD PRO** desk clock (ESP8266 ESP-12F,
-4 MB flash, 240 × 240 ST7789 display) into a live **CAW (crow with knife)**
-display. It runs on its own: no Home Assistant, server or account.
+Custom firmware that turns a **JUZIPi SD PRO** desk clock (either board:
+ESP8266 ESP-12F, or ESP32-C2 on newer clocks; 4 MB flash, 240 × 240 ST7789
+display) into a live **CAW (crow with knife)** display. It runs on its own: no Home Assistant, server or account.
 
 ![CAW Clock on its four chains: Cronos, Solana, Base and Robinhood](docs/caw-screens.png)
 
@@ -22,7 +22,9 @@ display. It runs on its own: no Home Assistant, server or account.
 - a burn alert: when someone bridges CAW, the 0.5% the bridge burns takes over
   the screen for 20 seconds, with the route and each chain's logo ("bsc to
   solana"), the amount bridged and the total burned
-  ([picture](docs/burn-alert.png))
+  ([picture](docs/burn-alert.png)); CAW sent straight to the Cronos dead
+  wallet gets an alert too, with who burned it (The Great Furnace's burns
+  have their own picture)
 - a supply screen: where CAW is, with each chain's share in a ring, the
   circulating supply, total burned and holders
   ([picture](docs/supply-screen.png))
@@ -35,11 +37,11 @@ each in the settings page. Market cap is always the overall CAW figure.
 Prices come from DexScreener, with GeckoTerminal as a backup and for chart
 history, over HTTPS with certificate checks.
 
-Burns come straight from the bridge's contracts: the clock asks public
+Burns come straight from the blockchains: the clock asks public
 blockchain servers (RPC) on Cronos, BSC, Base, Polygon, Arbitrum and
-Robinhood for the bridge's burn events every few minutes, and Solana's for
-its CAW supply. The total burned is counted the way the CAW Discord's burn
-bot counts it.
+Robinhood for the bridge's burn events every few minutes (on Cronos also for
+CAW sent to the dead wallet), and Solana's for its CAW supply. The total
+burned is counted the way the CAW Discord's burn bot counts it.
 
 The supply screen adds up each chain's CAW supply from the same blockchain
 servers; holder counts come from GeckoTerminal (Solana counts both CAW
@@ -51,15 +53,19 @@ tokens, as the CAW site does).
 [INSTALL.md](INSTALL.md).** In short:
 
 Already on v0.4.0 or later? Settings page → **System** → **Check for
-updates** → **Install**. Otherwise, download `caw-clock-<version>.bin` from the
+updates** → **Install**. Otherwise, download the file for your board from the
 [latest release](https://github.com/caw7777/caw-clock/releases/latest)
-and check it against `SHA256SUMS.txt`.
+and check it against `SHA256SUMS.txt`: `caw-clock-<version>.bin` for the
+ESP8266 board, `caw-clock-sdc2-<version>.bin` (or the installer below) for the
+ESP32-C2 board. Not sure which board? The factory update page takes files
+starting with `SDP` (ESP8266) or `SDC2` (ESP32-C2).
 
 | Clock is running | How to install |
 |---|---|
 | CAW Clock firmware | Settings page → **System** → **Install a file**: choose the `.bin` → **Install firmware** |
 | [Home Assistant Mini Display](https://github.com/piotrkochan/homeassistant-minidisplay) firmware | Its **Firmware** page → upload the `.bin` |
-| The original (stock) firmware | The stock updater can't take a full firmware. First install the Mini Display firmware with its bootstrap ([instructions](https://github.com/piotrkochan/homeassistant-minidisplay#readme)), then upload the CAW `.bin` from its Firmware page. A CAW bootstrap is planned. |
+| The original (stock) firmware, **ESP32-C2 board (SDC2)** | Factory web page → **Firmware Update (OTA)** → `SDC2-CAW-Clock-Installer-<version>.bin`. It joins the clock's Wi-Fi, downloads and checks CAW Clock, and starts it ([details](INSTALL.md#d-from-the-factory-firmware-sdc2)). |
+| The original (stock) firmware, ESP8266 board | Its web page → firmware update → `SDP-CAW-Clock-Installer-<version>.bin`. It opens a setup network for your Wi-Fi, clock password and time zone, then downloads, checks and installs CAW Clock ([details](INSTALL.md#c-from-the-factory-firmware)). |
 
 Don't unplug the clock while it restarts after an install.
 
@@ -130,7 +136,9 @@ is built into the firmware (the default time zone is UTC).
   the current version (about 1 MB of meme storage, freed again after 10
   minutes) and returns to it automatically if the new version doesn't start
   correctly. Without room for the copy, the settings page says so and the
-  update goes ahead without it.
+  update goes ahead without it. The ESP32-C2 board keeps the previous version
+  in its second program slot instead, and goes back to it if a new version
+  keeps crashing when it starts.
 
 ## Building
 
@@ -148,19 +156,33 @@ cd firmware && pio run -e sdpro_caw_standalone
 The image is `firmware/.pio/build/sdpro_caw_standalone/firmware.bin`; it must
 stay under the 1,044,464-byte OTA slot.
 
+**ESP32-C2 board (SDC2):** `caw-c2/` builds the same app, compiled from the
+same sources, on ESP-IDF 5.5 ([pioarduino](https://github.com/pioarduino/platform-espressif32),
+which needs PlatformIO Core 6.2, the version the release workflow pins), after
+the ESP8266 build above (it reuses that build's ArduinoJson):
+
+```sh
+pip install "platformio @ https://github.com/platformio/platformio-core/archive/d8c21353ee2eccae6ecb5a3a95f8e75612e8887a.zip"
+cd caw-c2 && pio run                  # caw-c2/.pio/build/sdc2/firmware.bin, at most 1,572,864 bytes
+export CAW_INSTALLER_VERSION=<version> CAW_INSTALLER_SHA256=<sha256 of caw-clock-sdc2-<version>.bin>
+cd installer && pio run               # the installer, at most 786,432 bytes
+```
+
 ### CI
 
 | Workflow | Runs | Does |
 |---|---|---|
 | Build CAW standalone | changes to the source zip | CAW firmware (`sdpro_caw_standalone`) + native tests |
-| Release CAW Clock firmware | a release is published (or manual dry run) | builds and attaches the release files |
+| Release CAW Clock firmware | a release is published (or manual dry run) | builds both boards' firmware and installers and attaches the release files |
 | Build CAW TLS probe | changes to the source zip | HTTPS test firmware (`sdpro_caw_probe`) |
 
 ### Release files
 
 | File | What |
 |---|---|
-| `caw-clock-<version>.bin` | the firmware |
+| `caw-clock-<version>.bin` | the firmware (ESP8266 board) |
+| `caw-clock-sdc2-<version>.bin` | the firmware (ESP32-C2 board) |
+| `SDC2-CAW-Clock-Installer-<version>.bin` | installer for ESP32-C2 clocks on their factory firmware |
 | `SHA256SUMS.txt` | checksums of all files |
 | `caw-clock-<version>-source.tar.gz` | project source used for the build |
 | `caw-clock-<version>-relink.tar.gz` | ESP8266 core, SDK and libraries as built, plus compiled objects, for rebuilding with a modified core (LGPL); see `RELINKING.md` inside |

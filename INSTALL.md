@@ -10,18 +10,36 @@ route for the firmware it runs today, then do the [first-time setup](#first-time
 
 | Clock | Chip | CAW Clock support |
 |---|---|---|
-| **JUZIPi SD PRO** ("Smart Weather Clock") | ESP8266 | ✅ Supported and tested |
+| **JUZIPi SD PRO** ("Smart Weather Clock"), ESP8266 board ("SDP") | ESP8266 | ✅ Supported and tested |
+| **JUZIPi SD PRO**, ESP32-C2 board ("SDC2") | ESP32-C2 | ✅ Supported from v0.7.0 |
 | GeekMagic SmallTV / SmallTV Ultra | ESP8266 | 🔜 Planned, needs a test unit |
 | GeekMagic SmallTV Pro | ESP32 | 🔜 Planned (port), needs a test unit |
 | GeekMagic SmallTV ESP32-C2 | ESP32-C2 | 🔜 Planned (port), needs a test unit |
 
+**Don't rename the files.** The name is how a clock's factory updater knows
+a file is for it (`SDP...` for the ESP8266 board, `SDC2...` for the ESP32-C2
+board). CAW Clock itself checks inside every file and refuses the other
+board's firmware.
+
 Only install CAW Clock on a model marked ✅. Firmware for the wrong board can
 leave the screen blank, and then you can't read the setup key it shows.
+
+**Which SD PRO board?** Both look the same. The factory firmware's update page
+tells them apart: it only takes files whose names start with **SDP** on the
+ESP8266 board and **SDC2** on the ESP32-C2 board (its version reads
+"SDC2 ..."). Once CAW Clock runs, the **System** tab's **Check for updates**
+picks the right file by itself.
 
 ## 2. Download the firmware
 
 From the [latest release](https://github.com/caw7777/caw-clock/releases/latest)
-download `caw-clock-<version>.bin` (for example `caw-clock-0.3.0.bin`).
+download the file for your board:
+
+| Board | File |
+|---|---|
+| ESP8266 (SDP) | `caw-clock-<version>.bin` (for example `caw-clock-0.7.0.bin`) |
+| ESP32-C2 (SDC2), already running CAW Clock | `caw-clock-sdc2-<version>.bin` |
+| ESP32-C2 (SDC2), factory firmware | `SDC2-CAW-Clock-Installer-<version>.bin` (route D) |
 
 Optional check: `SHA256SUMS.txt` lists the file's fingerprint. On a computer:
 
@@ -30,7 +48,7 @@ Optional check: `SHA256SUMS.txt` lists the file's fingerprint. On a computer:
 
 The result must match the line in `SHA256SUMS.txt`.
 
-## 3. Install on the JUZIPi SD PRO
+## 3. Install on the SD PRO with an ESP8266 board (SDP)
 
 Find the firmware your clock runs now:
 
@@ -67,33 +85,90 @@ No home Wi-Fi? Join the clock's setup network instead (see
 
 ### C. From the factory firmware
 
-The factory updater can't take the full firmware, so this is a two-step
-install for now. You need internet access during step 1.
+You need the clock on your home Wi-Fi with its own web page working, and
+internet access.
 
-**Step 1: install Mini Display with its bootstrap**
-
-1. Download `SDP-HomeAssistant-MiniDisplay-Bootstrap-<version>.bin` from the
-   [Mini Display releases](https://github.com/piotrkochan/homeassistant-minidisplay/releases).
-   Don't rename it: the factory updater only accepts files whose name starts
-   with `SDP`.
+1. From the [latest release](https://github.com/caw7777/caw-clock/releases/latest)
+   download `SDP-CAW-Clock-Installer-<version>.bin`. Don't rename it: the
+   factory updater only accepts files whose name starts with `SDP`.
 2. Open the clock's own web page (its address is in the clock's network
    settings or your router's device list) and upload the file in its firmware
    update section.
-3. The clock shows an installer network name and password. Join it with your
-   phone and open `http://192.168.4.1`.
-4. Choose your Wi-Fi, enter its password, set an interface password (keep it:
-   it becomes your CAW clock password), then press **Install**. Wait until
-   the Mini Display firmware has started.
+3. The clock restarts into the installer and shows a setup network
+   (`CAW-Installer-XXXXXX`) and its key. Join it with your phone and open
+   `http://192.168.4.1`.
+4. Choose your Wi-Fi, enter its password, choose a clock password (8–32
+   characters) and check the time zone, then press **Install**.
+5. The installer downloads CAW Clock from the release, checks its SHA-256 and
+   installs it. The clock restarts into CAW Clock, joins your Wi-Fi and shows
+   its settings-page address. Sign in as **admin** with your clock password.
 
-**Step 2:** follow [route B](#b-from-home-assistant-mini-display-firmware).
+If the factory page shows **Not found**, the update handler still works: on a
+computer joined to the same network, run this in the folder with the file
+(PowerShell on Windows; `curl` on macOS or Linux):
 
-> 🔜 **Coming: the CAW bootstrap.** One file uploaded through the factory
-> updater that downloads and checks CAW Clock itself, so steps 1 and 2 become
-> one. It needs public release hosting, which isn't set up yet.
+```bash
+curl.exe -F "update=@.\SDP-CAW-Clock-Installer-<version>.bin" http://<clock address>/update_ota
+```
+
+Prefer the longer way? Install the [Home Assistant Mini Display](https://github.com/piotrkochan/homeassistant-minidisplay#readme)
+firmware with its bootstrap first, then follow
+[route B](#b-from-home-assistant-mini-display-firmware).
+
+## 4. Install on the SD PRO with an ESP32-C2 board (SDC2)
+
+| The clock's web page or screen shows | Your route |
+|---|---|
+| **CAW CLOCK** in purple, crow picture | [A: update CAW Clock](#a-already-running-caw-clock) (the same as on the ESP8266 board) |
+| The factory screens, firmware version **SDC2 ...** | [D: from the factory firmware](#d-from-the-factory-firmware-sdc2) |
+
+### D. From the factory firmware (SDC2)
+
+The clock must be on your home Wi-Fi with its factory firmware (as it comes
+out of the box, set up with the factory instructions), with internet access.
+
+1. From the [latest release](https://github.com/caw7777/caw-clock/releases/latest)
+   download `SDC2-CAW-Clock-Installer-<version>.bin`. Don't rename it: the
+   factory updater only accepts files whose name starts with `SDC2`.
+2. Open the clock's factory web page (its address is in the clock's network
+   settings or your router's device list), go to **Firmware Update (OTA)**,
+   choose the file and upload it.
+3. The clock restarts into the installer: the crow, **CAW CLOCK** and the
+   version, then its progress: **JOINING WI-FI**, **DOWNLOADING**, **CHECKING**,
+   **INSTALLING**, **DONE**. It takes a few minutes. Don't unplug it while it
+   shows **INSTALLING**.
+4. CAW Clock starts, joins the same Wi-Fi and shows **Connected** with its
+   settings-page address for 10 seconds. Open it and sign in as **admin**
+   (there is no password yet), then straight away set a **clock password**
+   (**System** tab) and your **time zone** (**Display** tab: until then the
+   clock shows UTC). Until a password
+   is set, anyone on your network can change the settings.
+
+Good to know:
+
+- **One-way:** the installer replaces the factory firmware and arranges the
+  flash for CAW Clock (two 1.5 MB program slots and 960 KB of storage).
+  Going back to the factory firmware would need a USB-serial adapter.
+- **Wi-Fi:** the installer uses the Wi-Fi the factory firmware saved. If
+  there is none, or it can't join, the screen shows **WI-FI NEEDED** with a
+  network (`CAW-Clock-XXXXXX`) and a key: join it, open `http://192.168.4.1`
+  and enter your Wi-Fi name and password (2.4 GHz).
+- **If the download fails** (no internet, GitHub unreachable) the installer
+  tries again, and after the third failed try the clock goes back to its
+  factory firmware, unchanged. Fix the connection and upload the installer
+  again.
+- The installer installs exactly the release it came with: it checks the
+  download's SHA-256 against the one built into it before anything is
+  changed.
+- **Updates** afterwards: [route A](#a-already-running-caw-clock).
+- **Automatic rollback** works differently on this board: if a new version
+  keeps crashing when it starts, the clock goes back to the previous one by
+  itself.
 
 ## First-time setup
 
-After a first install, or after **Factory reset**:
+After a first install on the ESP8266 board, or after **Factory reset** (on
+either board):
 
 1. The clock shows **Set up CAW Clock** with a network name
    (`CAW-Clock-XXXXXX`) and a **Key**.
