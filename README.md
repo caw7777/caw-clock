@@ -8,6 +8,8 @@ display) into a live **CAW (crow with knife)** display. It runs on its own: no H
 
 ![BSC, a burn alert and the supply screen](docs/caw-screens-new.png)
 
+![Burn alerts: a bridge burn, another wallet's burn and The Great Furnace's](docs/burn-screens.png)
+
 ## What it shows
 
 - CAW price with a subscript zero count (`$0.0₈4785`), 1H and 24H change
