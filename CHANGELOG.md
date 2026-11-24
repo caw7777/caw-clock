@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.7.1
+
+- **Check for updates → Install works again on the ESP8266 board (SDP).**
+  Installing from GitHub stopped with "Not enough memory to connect to
+  release-assets.githubusercontent.com" on 0.7.0. Update mode now leaves more
+  memory free for the download. Clocks on 0.7.0 with the ESP8266 board need
+  this version installed once by hand (System → Install a file with
+  `caw-clock-0.7.1.bin`); later updates work from the settings page.
+- Clocks on a test version (such as `0.7.0-rc2`) now see the release of the
+  same number as newer.
+
 ## v0.7.0
 
 - **New model: the SD PRO with an ESP32-C2 board ("SDC2").** Newer SD PRO
