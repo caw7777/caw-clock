@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.8.0
+
+- **Update notices:** the clock checks for a new version once a day. When one
+  is out, a small green dot appears next to the Wi-Fi icon and the settings
+  page says which version is available. Install it from the **System** tab
+  as before; nothing is installed without you.
+- **ESP32-C2 board (SDC2):** faster price updates. The clock reuses its secure
+  connection to each price and burn source instead of starting a new one each
+  time (about 35 ms instead of 1.3 s per connection).
+- **ESP32-C2 board (SDC2):** a new built-in animated meme, CAW-verse.
+
 ## v0.7.1
 
 - **Check for updates → Install works again on the ESP8266 board (SDP).**

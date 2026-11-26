@@ -139,7 +139,10 @@ is built into the firmware (the default time zone is UTC).
   prices and keeps the settings page and firmware upload working.
 - **Updates from the settings page** are downloaded from this repository's
   releases over HTTPS and installed only if their SHA-256 matches the
-  release's `SHA256SUMS.txt`. The clock checks only when you press the button.
+  release's `SHA256SUMS.txt`. The clock checks once a day (and when you press
+  **Check for updates**); a newer version shows a small green dot next to the
+  Wi-Fi icon and a notice on the settings page. It installs only when you
+  press **Install**.
 - **Built-in backup:** while an update is installing, the clock keeps a copy of
   the current version (about 1 MB of meme storage, freed again after 10
   minutes) and returns to it automatically if the new version doesn't start
