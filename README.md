@@ -17,7 +17,10 @@ display) into a live **CAW (crow with knife)** display. It runs on its own: no H
 - liquidity, 24H volume and market cap
 - green or red by the 24-hour move; the ticker ring turns grey when the data
   is stale
-- the time (your time zone, 12- or 24-hour) and Wi-Fi state
+- the time (your time zone, 12- or 24-hour) and Wi-Fi state, with a small
+  green dot when a new version is out
+- CAW memes in the corner: the built-in ones (the ESP32-C2 board also has the
+  animated CAW-verse) and your own uploads
 - a price alert: when a chain makes a big move in an hour, the clock jumps to
   it and the price flashes green (up) or red (down) for 5 minutes
   ([picture](docs/price-alert.png))
@@ -201,7 +204,8 @@ cd installer && pio run               # the installer, at most 786,432 bytes
 | `LICENSE`, `THIRD_PARTY.md` | licences and third-party notices |
 
 Asset scripts (run by hand, outputs committed): `caw_chain_icons.py`
-(chain logos), `caw_memes.py` (bundled memes), `caw_furnace.py` (The Great
+(chain logos), `caw_memes.py` (bundled memes: `assets/memes`, plus
+`assets/memes-sdc2` for the ESP32-C2 board only), `caw_furnace.py` (The Great
 Furnace's burn picture), `caw_timezones.py` (time zones from the IANA
 database).
 
